@@ -1,0 +1,9 @@
+---
+- name: Apt update cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600 # 1 hr
+  become: true
+
+- name: Install NICE DCV
+  ansible.builtin.import_tasks: nice-dcv.yml

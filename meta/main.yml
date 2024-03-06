@@ -1,0 +1,10 @@
+galaxy_info:
+  role_name: xronos_nice_dcv_ansible
+  author: Xronos, Inc.
+  description: "Ansible role to install NICE-DCV"
+  license: proprietery
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all

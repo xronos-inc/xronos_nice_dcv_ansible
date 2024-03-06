@@ -1,0 +1,75 @@
+---
+# See https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+
+# download the gpg key and save with extension ".asc", which bypasses the need to dearmor.
+# this is the workaround for the deprecation of ansible.builtin.apt_key for repositories
+# that are not yet 
+- name: Import NICE DCV gpg key
+  ansible.builtin.get_url:
+    url: https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
+    dest: /etc/apt/trusted.gpg.d/nice-dcv.asc
+    mode: 0644
+  become: true
+
+- name: Download NICE DCV packages
+  ansible.builtin.unarchive:
+    remote_src: true
+    src: https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-{{ nice_dcv_distroversion }}-x86_64.tgz
+    list_files: true
+    dest: /opt
+  become: true
+  register: nice_pkg_tarball
+
+- name: Find NICE DCV base packages
+  ansible.builtin.find:
+    paths: "/opt/{{ nice_pkg_tarball.files[0] }}"
+    recurse: false
+    file_type: file
+    patterns:
+      - "nice-dcv-simple-external-authenticator*.deb"
+      - "nice-dcv-web-viewer*.deb"
+      - "nice-xdcv*.deb"
+      - "nice-dcv-server*.deb"
+  become: true
+  register: nice_pkg_base_debs
+
+- name: Install NICE DCV base packages
+  ansible.builtin.apt:
+    deb: "{{ nice_deb }}"
+  with_items: "{{ nice_pkg_base_debs.files | map(attribute='path') | list }}"
+  loop_control:
+    loop_var: nice_deb
+  become: true
+  notify: Restart X11
+
+- name: Find NICE DCV additional packages
+  ansible.builtin.find:
+    paths: "/opt/{{ nice_pkg_tarball.files[0] }}"
+    recurse: false
+    file_type: file
+    patterns:
+      - "nice-dcv-gl*.deb"
+      - "nice-dcv-gnome-shell-extension*.deb"
+  become: true
+  register: nice_pkg_additional_debs
+
+- name: Install NICE DCV additional packages
+  ansible.builtin.apt:
+    deb: "{{ nice_deb }}"
+  with_items: "{{ nice_pkg_additional_debs.files | map(attribute='path') | list }}"
+  loop_control:
+    loop_var: nice_deb
+  become: true
+
+- name: Wait for dcv user to be created
+  ansible.builtin.wait_for:
+    path: /etc/passwd
+    search_regex: "^dcv:"
+
+- name: Add user dcv to video group
+  ansible.builtin.user:
+    name: dcv
+    groups:
+      - video
+    append: true
+  become: true
