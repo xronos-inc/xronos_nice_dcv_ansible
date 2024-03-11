@@ -73,3 +73,11 @@
       - video
     append: true
   become: true
+
+- name: Start service dcvserver
+  ansible.builtin.service:
+    name: dcvserver
+    enabled: true
+    state: started
+  become: true
+  
