@@ -16,13 +16,13 @@
     remote_src: true
     src: https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-{{ nice_dcv_distroversion }}-x86_64.tgz
     list_files: true
-    dest: /opt
+    dest: /tmp
   become: true
   register: nice_pkg_tarball
 
 - name: Find NICE DCV base packages
   ansible.builtin.find:
-    paths: "/opt/{{ nice_pkg_tarball.files[0] }}"
+    paths: "/tmp/{{ nice_pkg_tarball.files[0] }}"
     recurse: false
     file_type: file
     patterns:
@@ -44,7 +44,7 @@
 
 - name: Find NICE DCV additional packages
   ansible.builtin.find:
-    paths: "/opt/{{ nice_pkg_tarball.files[0] }}"
+    paths: "/tmp/{{ nice_pkg_tarball.files[0] }}"
     recurse: false
     file_type: file
     patterns:
