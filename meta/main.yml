@@ -2,7 +2,7 @@ galaxy_info:
   role_name: xronos_nice_dcv_ansible
   company: Xronos Inc.
   description: "Ansible role to install NICE-DCV"
-  license: BSD-3
+  license: BSD-3-Clause
   min_ansible_version: "2.15"
   platforms:
     - name: Ubuntu
