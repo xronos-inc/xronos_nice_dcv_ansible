@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: (c) 2024 Xronos Inc.
+# SPDX-License-Identifier: BSD-3-Clause
+---
+# See https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-installing-linux-server.html
+
+# glob that will patch the suffix of downloaded debian packages for this version
+- name: Set fact _deb_fileglob
+  ansible.builtin.set_fact:
+    # pattern: package_2024.0.18131-1_amd64.ubuntu2404.deb
+    _deb_fileglob: _{{ nice_dcv_major_version }}.*_{{ ansible_architecture | regex_replace('x86_64', 'amd64') }}.{{ nice_dcv_distro }}.deb
+
+# download the gpg key and save with extension ".asc", which bypasses the need to dearmor.
+# this is the workaround for the deprecation of ansible.builtin.apt_key for repositories
+# that are not yet 
+- name: Import NICE DCV gpg key
+  become: true
+  ansible.builtin.get_url:
+    url: https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
+    dest: /etc/apt/trusted.gpg.d/nice-dcv.asc
+    mode: 0644
+
+- name: Download NICE DCV packages {{ nice_dcv_version}}
+  register: _nice_pkg_tarball
+  become: true
+  ansible.builtin.unarchive:
+    remote_src: true
+    src: https://d1uj6qtbmh3dt5.cloudfront.net/{{ nice_dcv_major_version }}/Servers/nice-dcv-{{ nice_dcv_version }}-{{ nice_dcv_distro }}-{{ ansible_architecture }}.tgz
+    list_files: true
+    dest: "{{ ansible_env.HOME }}/.cache"
+
+# these packages must be installed first -- subsequent packages depend on them
+- name: Find NICE DCV base packages
+  register: _base_debs
+  become: true
+  ansible.builtin.find:
+    paths: "{{ ansible_env.HOME }}/.cache/{{ _nice_pkg_tarball.files[0] }}"
+    recurse: false
+    file_type: file
+    patterns:
+      - "nice-dcv-simple-external-authenticator{{ _deb_fileglob }}"
+      - "nice-dcv-web-viewer{{ _deb_fileglob }}"
+      - "nice-xdcv{{ _deb_fileglob }}"
+      - "nice-dcv-server{{ _deb_fileglob }}"
+
+- name: Find NICE DCV {{ nice_dcv_major_version }} additional packages
+  become: true
+  register: _additional_debs
+  ansible.builtin.find:
+    paths: "{{ ansible_env.HOME }}/.cache/{{ _nice_pkg_tarball.files[0] }}"
+    recurse: false
+    file_type: file
+    patterns:
+      - "nice-dcv-gl{{ _deb_fileglob }}"
+      - "nice-dcv-gltest{{ _deb_fileglob }}"
+
+- name: Install NICE DCV {{ nice_dcv_major_version }} packages
+  with_items: "{{ (_base_debs.files + _additional_debs.files) | map(attribute='path') | list }}"
+  loop_control:
+    loop_var: _nice_deb
+  register: _nice_dcv
+  become: true
+  ansible.builtin.apt:
+    deb: "{{ _nice_deb }}"
+
+- name: Restart X11
+  when: _nice_dcv.changed
+  become: true
+  ansible.builtin.shell:
+    cmd: >
+      systemctl isolate multi-user.target
+      && systemctl isolate graphical.target

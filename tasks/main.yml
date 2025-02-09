@@ -1,11 +1,21 @@
-# SPDX-FileCopyrightText: © 2024 Xronos Inc.
+# SPDX-FileCopyrightText: (c) 2024 Xronos Inc.
 # SPDX-License-Identifier: BSD-3-Clause
 ---
 - name: Apt update cache
+  become: true
   ansible.builtin.apt:
     update_cache: true
     cache_valid_time: 3600 # 1 hr
-  become: true
 
-- name: Install NICE DCV
-  ansible.builtin.import_tasks: nice-dcv.yml
+- name: Install NICE DCV packages
+  ansible.builtin.import_tasks: nice-dcv-packages.yml
+
+- name: Configure NICE DCV 
+  ansible.builtin.import_tasks: nice-dcv-config.yml
+
+- name: Configure NICE DCV for headless servers
+  when: nice_dcv_headless
+  ansible.builtin.include_tasks: nice-dcv-headless.yml
+
+- name: Configure NICE DCV user services
+  ansible.builtin.import_tasks: nice-dcv-services.yml

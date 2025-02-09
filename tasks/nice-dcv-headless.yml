@@ -1,0 +1,23 @@
+---
+# dpms kills frame rate
+- name: Disable X11 extension DPMS
+  register: _dpms
+  become: true
+  ansible.builtin.copy:
+    src: 21-dpms-disable.conf
+    dest: /etc/X11/xorg.conf.d/
+
+- name: Copy X11 configuration xorg.conf
+  register: _xorg_conf
+  become: true
+  ansible.builtin.copy:
+    src: xorg.conf
+    dest: /etc/X11/xorg.conf
+
+- name: Restart X11
+  when: _dpms.changed or _xorg_conf.changed
+  become: true
+  ansible.builtin.shell:
+    cmd: >
+      systemctl isolate multi-user.target
+      && systemctl isolate graphical.target

@@ -1,0 +1,22 @@
+[Unit]
+Description=NICE-DCV virtual session {{ ansible_user }}
+Requires=dcvserver.service dcv-xhost.service
+After=graphical.target
+
+[Install]
+WantedBy=graphical.target
+
+[Service]
+Type=oneshot
+Environment="DISPLAY=:0"
+Environment="XAUTHORITY={{ gdm_xauthority }}"
+# allow enough time for window managers to start
+ExecStartPre=/bin/sleep 15
+ExecStart=dcv create-session \
+            --type virtual \
+            --name "{{ ansible_user }}" \
+            --user "{{ ansible_user }}" \
+            --owner "{{ ansible_user }}" \
+            "{{ ansible_user }}"
+ExecStop=dcv close-session {{ ansible_user }}
+RemainAfterExit=true

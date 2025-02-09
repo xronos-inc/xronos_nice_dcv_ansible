@@ -1,0 +1,69 @@
+---
+- name: Query user ID for gdm
+  ansible.builtin.getent:
+    database: passwd
+    key: gdm
+
+- name: Set fact gdm_xauthority
+  ansible.builtin.set_fact:
+    gdm_xauthority: /run/user/{{ getent_passwd.gdm[1] }}/gdm/Xauthority
+
+- name: Wait for XAuthority cookie "{{ gdm_xauthority }}"
+  become: true
+  ansible.builtin.wait_for:
+    path: "{{ gdm_xauthority }}"
+    timeout: 15
+
+- name: Create service dcv-xhost
+  become: true
+  ansible.builtin.template:
+    src: dcv-xhost.service.j2
+    dest: /etc/systemd/system/dcv-xhost.service
+
+- name: Query xhost access
+  register: _xhost_cmd
+  changed_when: false
+  failed_when: false
+  ansible.builtin.command:
+    cmd: xhost
+  environment:
+    DISPLAY: ":0"
+    XAUTHORITY: "{{ gdm_xauthority }}"
+
+# dcv-host is a one-shot service which will be stopped once excuted
+# start only if user dcv is not in the xhost accept list
+- name: Start service dcv-xhost
+  when: "'dcv' not in _xhost_cmd.stdout"
+  become: true
+  ansible.builtin.service:
+    name: dcv-xhost
+    enabled: true
+    state: restarted
+
+- name: Create system service dcv-session-{{ ansible_user }}
+  ansible.builtin.template:
+    src: dcv-session.service.j2
+    dest: /etc/systemd/system/dcv-session-{{ ansible_user }}.service
+  become: true
+
+- name: Enable system service dcv-session-{{ ansible_user }}
+  become: true
+  ansible.builtin.systemd:
+    name: dcv-session-{{ ansible_user }}
+    enabled: true
+
+- name: Query dcv sessions
+  register: _dcv_sessions
+  changed_when: false
+  become: true
+  ansible.builtin.command:
+    cmd: dcv list-sessions
+
+# dcv-session-avp is a one-shot service which will be stopped once excuted
+# start only if session is not in the dcv sessions list
+- name: Start system service dcv-session-{{ ansible_user }}
+  when: ansible_user not in _dcv_sessions.stdout
+  become: true
+  ansible.builtin.service:
+    name: dcv-session-{{ ansible_user }}
+    state: restarted

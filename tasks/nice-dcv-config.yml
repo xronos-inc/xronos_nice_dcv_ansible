@@ -1,0 +1,27 @@
+---
+- name: Copy dcv.conf
+  become: true
+  register: _dcv_conf
+  ansible.builtin.copy:
+    src: dcv.conf
+    dest: /etc/dcv/dcv.conf
+
+- name: Wait for dcv user to be created
+  ansible.builtin.wait_for:
+    path: /etc/passwd
+    search_regex: "^dcv:"
+
+- name: Add user dcv to video group
+  become: true
+  ansible.builtin.user:
+    name: dcv
+    groups:
+      - video
+    append: true
+
+- name: Start service dcvserver
+  become: true
+  ansible.builtin.service:
+    name: dcvserver
+    enabled: true
+    state: "{{ _dcv_conf.changed | ternary('restarted', 'started') }}"

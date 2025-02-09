@@ -1,0 +1,16 @@
+[Unit]
+Description=NICE-DCV xhost
+After=network.target graphical.target
+
+[Install]
+WantedBy=graphical.target
+
+[Service]
+Type=oneshot
+Environment="DISPLAY=:0"
+Environment="XAUTHORITY={{ gdm_xauthority }}"
+# allow enough time for window managers to start
+ExecStartPre=/bin/sleep 15
+ExecStart=/usr/bin/xhost +LOCAL:"" +SI:localuser:dcv
+ExecStop=/usr/bin/xhost -LOCAL:"" -SI:localuser:dcv
+RemainAfterExit=true
