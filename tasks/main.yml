@@ -19,3 +19,7 @@
 
 - name: Configure NICE DCV user services
   ansible.builtin.import_tasks: nice-dcv-services.yml
+
+- name: Configure user Xauthority cookie
+  when: nice_dcv_headless
+  ansible.builtin.include_tasks: xauth-cookie.yml
